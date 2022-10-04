@@ -20,7 +20,7 @@ export class CdkS3LambdaEventsStack extends Stack {
       runtime: lambda.Runtime.JAVA_11,
       memorySize: 1024,
       handler: "com.codigomorsa.app.Pokedex::handleRequest",
-      code: lambda.Code.fromAsset("./lambda/build/libs/shipping-1.0-SNAPSHOT-all.jar"),
+      code: lambda.Code.fromAsset("./app/build/libs/app-1.0-SNAPSHOT-all.jar"),
       timeout: Duration.seconds(10)
     });
   }
@@ -44,7 +44,8 @@ export class CdkS3LambdaEventsStack extends Stack {
     const s3Trigger = new s3_notif.LambdaDestination(this.lambdaF);
     s3Trigger.bind(this, bucket);
 
-    
-    bucket.addObjectCreatedNotification(s3Trigger, ...[".jpg", ".jpeg", ".png"].map(suffix => ({suffix})));
+    [".jpg", ".jpeg", ".png"].map(suffix => {
+      bucket.addObjectCreatedNotification(s3Trigger, {suffix});
+    });
   }
 }
