@@ -1,19 +1,50 @@
-import { Duration, Stack, StackProps } from 'aws-cdk-lib';
-import * as sns from 'aws-cdk-lib/aws-sns';
-import * as subs from 'aws-cdk-lib/aws-sns-subscriptions';
-import * as sqs from 'aws-cdk-lib/aws-sqs';
+import { Duration, lambda_layer_awscli, Stack, StackProps } from 'aws-cdk-lib';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as s3_notif from 'aws-cdk-lib/aws-s3-notifications';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 
 export class CdkS3LambdaEventsStack extends Stack {
+  private lambdaF: lambda.Function;
+
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    const queue = new sqs.Queue(this, 'CdkS3LambdaEventsQueue', {
-      visibilityTimeout: Duration.seconds(300)
+    this.initLambda();
+    this.initS3();
+  }
+
+  private initLambda() {
+    this.lambdaF = new lambda.Function(this, "S3Lambda", {
+      runtime: lambda.Runtime.JAVA_11,
+      memorySize: 1024,
+      handler: "com.codigomorsa.app.Pokedex::handleRequest",
+      code: lambda.Code.fromAsset("./lambda/build/libs/shipping-1.0-SNAPSHOT-all.jar"),
+      timeout: Duration.seconds(10)
+    });
+  }
+
+  private initS3() {
+    const bucket = new s3.Bucket(this, "PokedexBucket", {
+      publicReadAccess: true
     });
 
-    const topic = new sns.Topic(this, 'CdkS3LambdaEventsTopic');
+    const s3Policy = new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        's3:GetObject*'
+      ],
+      resources: [bucket.arnForObjects('*'), bucket.bucketArn],
+      principals: [new iam.AnyPrincipal()], 
+    });
 
-    topic.addSubscription(new subs.SqsSubscription(queue));
+    bucket.addToResourcePolicy(s3Policy);
+
+    const s3Trigger = new s3_notif.LambdaDestination(this.lambdaF);
+    s3Trigger.bind(this, bucket);
+
+    
+    bucket.addObjectCreatedNotification(s3Trigger, ...[".jpg", ".jpeg", ".png"].map(suffix => ({suffix})));
   }
 }
