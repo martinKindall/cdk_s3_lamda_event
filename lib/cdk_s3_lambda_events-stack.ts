@@ -23,6 +23,32 @@ export class CdkS3LambdaEventsStack extends Stack {
       code: lambda.Code.fromAsset("./app/build/libs/app-1.0-SNAPSHOT-all.jar"),
       timeout: Duration.seconds(10)
     });
+
+    const rekognitionModel = "arn:aws:rekognition:us-east-1:371417955885:project/pokedex/version/pokedex.2022-10-02T12.52.44/1664707965078";
+    const rekognitionPolicy = new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'rekognition:DetectCustomLabels'
+      ],
+      resources: [rekognitionModel],
+    });
+
+    const sesArnSender = "arn:aws:ses:us-east-1:371417955885:identity/codigomorsa.link";
+    const sesArnReceiver = "arn:aws:ses:us-east-1:371417955885:identity/mart256@gmail.com";
+    const sesPolicy = new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'ses:SendEmail'
+      ],
+      resources: [sesArnSender, sesArnReceiver],
+    });
+
+    this.lambdaF.addEnvironment("REKOGNITION_MODEL", rekognitionModel);
+    this.lambdaF.addEnvironment("SES_ARN", sesArnSender);
+    this.lambdaF.addEnvironment("EMAIL_ADDR", "pokedex@codigomorsa.link");
+    this.lambdaF.addEnvironment("TO_ADDR", "mart256@gmail.com");
+    this.lambdaF.addToRolePolicy(rekognitionPolicy);
+    this.lambdaF.addToRolePolicy(sesPolicy);
   }
 
   private initS3() {
